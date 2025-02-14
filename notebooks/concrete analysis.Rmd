@@ -24,7 +24,7 @@ library(RVAideMemoire)
 
 Load the data
 ```{r}
-df <- read_excel('concrete compressive strength.xlsx')
+df <- read_excel('data/concrete compressive strength.xlsx')
 df <- as.data.frame(df)
 # check the head of the dataset
 head(df)
