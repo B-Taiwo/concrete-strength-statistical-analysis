@@ -1,0 +1,1317 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+CONCRETE COMPRESSIVE STRENGTH
+
+
+Load the required Packages
+```{r}
+library(tidyverse)
+library(corrplot)
+library(readxl)
+library(datarium)
+library(qqplotr)
+library(rcompanion)
+library(lattice)
+library(car)
+library(FSA)
+library(multcomp)
+library(RVAideMemoire)
+```
+
+Load the data
+```{r}
+df <- read_excel('concrete compressive strength.xlsx')
+df <- as.data.frame(df)
+# check the head of the dataset
+head(df)
+```
+TASK 1 - EDA AND SUMMARY STATISTICS
+
+```{r}
+# check for missing values
+any(is.na(df))
+# check for duplicates
+sum(duplicated(df))
+```
+No missing values, but there are 25 duplicate rows, these duplicates would be removed
+
+```{r}
+# remove duplicate rows
+df <- df %>% distinct()
+```
+
+
+```{r}
+str(df)
+```
+
+
+To make things easier, we are going to rename to columns
+
+
+```{r}
+names(df)
+```
+
+
+```{r}
+# Rename the columns to easier names
+df <- df %>% 
+  rename(
+    cement = `Cement (component 1)(kg in a m^3 mixture)`,
+    blast_furnace_slag = `Blast Furnace Slag (component 2)(kg in a m^3 mixture)`,
+    fly_ash = `Fly Ash (component 3)(kg in a m^3 mixture)`,
+    water = `Water  (component 4)(kg in a m^3 mixture)`,
+    superplasticizer = `Superplasticizer (component 5)(kg in a m^3 mixture)`,
+    coarse_aggregate = `Coarse Aggregate  (component 6)(kg in a m^3 mixture)`,
+    fine_aggregate = `Fine Aggregate (component 7)(kg in a m^3 mixture)`,
+    age = `Age (day)`,
+    concrete_category = `Concrete Category`,
+    contains_fly_ash = `Contains Fly Ash`,
+    strength = `Concrete compressive strength(MPa, megapascals)`
+  )
+
+names(df)
+```
+```{r}
+#check the structure of the data
+str(df)
+```
+
+We can see that we have 11 columns, 9 are numerical, 2 categorical 
+
+
+Summary Statistics
+
+```{r}
+#check summary of the data to get a quick view of the means, medians, ranges, etc.
+summary(df)
+```
+With just quick glance, we can see that some of the columns have a widely different means and medians, 
+e.g Blast Furnace Slag, Fly ash, etc. This means that these columns are skewed! more EDA to verify.
+
+
+
+Distribution of the columns and Tests for Normality
+
+We set alpha = 0.05
+
+
+A. Histogram & Density plot for Numerical columns, and Tests for Normality
+```{r}
+# Plot a histogram, and add a density plot to show the distribution
+df %>% 
+  ggplot(aes(x=cement))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, fill = 'steelblue', alpha = 0.5, color = 'black')+
+  geom_density(color = 'darkred', linewidth=0.75)+
+  labs(title = "Distribution of Cement", x = "Cement (kg/m3)")+
+  theme_bw()
+```
+Cement: Slightly right-skewed distribution
+
+```{r}
+# QQ plot
+df %>% 
+  ggplot(aes(sample=cement))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Cement", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Cement: Deviations from the line suggest non-normality, particularly in the tails.
+
+```{r}
+# Shapiro-Wilk Test
+shapiro.test(df$cement)
+```
+p-value < 0.05, Not normal
+
+
+```{r}
+df %>% 
+  ggplot(aes(x=blast_furnace_slag))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, fill = 'steelblue', alpha = 0.5, color = 'black')+
+  geom_density(color = 'darkred', linewidth=0.75)+
+  labs(title = "Distribution of Blast Furnace Slag", x = 'Blast Furnace Slag (kg/m3)')+
+  theme_bw()
+```
+Blast Furnace Slag: Strong right skew, with many zero values.
+
+
+```{r}
+# QQ plot
+df %>% 
+  ggplot(aes(sample=blast_furnace_slag))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Blast Furnace Slag", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Blast Furnace Slag: Significant deviations from normality, confirming the right-skewed nature.
+
+```{r}
+# Shapiro-Wilk Test
+shapiro.test(df$blast_furnace_slag)
+```
+p-value < 0.05, Not normal
+
+```{r}
+df %>% 
+  ggplot(aes(x=fly_ash))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, fill = 'steelblue', alpha = 0.5, color = 'black')+
+  geom_density(color = 'darkred', linewidth=0.75)+
+  labs(title = "Distribution of Fly Ash", x = "Fly Ash (kg/m3)")+
+  theme_bw()
+```
+Fly Ash: Similar to blast furnace slag, right-skewed with many zero values.
+
+```{r}
+# QQ plot
+df %>% 
+  ggplot(aes(sample=fly_ash))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Fly Ash", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Fly Ash: Significant deviations from normality, confirming the right-skewed nature.
+
+```{r}
+# Shapiro-Wilk Test
+shapiro.test(df$fly_ash)
+
+```
+p-value < 0.05, Not normal
+
+```{r}
+df %>% 
+  ggplot(aes(x=water))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, fill = 'steelblue', alpha = 0.5, color = 'black')+
+  geom_density(color = 'darkred', linewidth=0.75)+
+  labs(title = "Distribution of Water", x = 'Water (kg/m3)')+
+  theme_bw()
+```
+Water: More symmetrical distribution, with values mostly centered around the mean, suggesting less skew.
+
+```{r}
+# QQ plot
+df %>% 
+  ggplot(aes(sample=water))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Water", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Water: Close to normal, but slight deviations in the tails.
+
+```{r}
+# Shapiro-Wilk Test
+shapiro.test(df$water)
+
+```
+
+```{r}
+df %>% 
+  ggplot(aes(x=superplasticizer))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, fill = 'steelblue', alpha = 0.5, color = 'black')+
+  geom_density(color = 'darkred', linewidth=0.75)+
+  labs(title = "Distribution of Superplasticizer", x = 'Superplasticizer (kg/m3)')+
+  theme_bw()
+```
+Superplasticizer: Highly skewed, with many zero values.
+
+```{r}
+# QQ plot
+df %>% 
+  ggplot(aes(sample=superplasticizer))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Superplasticizer", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Superplasticizer: Deviates from the line, confirming non-normality.
+
+```{r}
+# Shapiro-Wilk Test
+shapiro.test(df$superplasticizer)
+
+```
+
+
+```{r}
+df %>% 
+  ggplot(aes(x=coarse_aggregate))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, fill = 'steelblue', alpha = 0.5, color = 'black')+
+  geom_density(color = 'darkred', linewidth=0.75)+
+  labs(title = "Distribution of Coarse Aggregate", x = 'Coarse Aggregate (kg/m3)')+
+  theme_bw()
+```
+Coarse Aggregate: Roughly symmetric
+
+```{r}
+# QQ plot
+df %>% 
+  ggplot(aes(sample=coarse_aggregate))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Coarse Aggregate", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Coarse Aggregate: slight deviations, probably none normal.
+
+```{r}
+# Shapiro-Wilk Test
+shapiro.test(df$coarse_aggregate)
+
+```
+
+
+```{r}
+df %>% 
+  ggplot(aes(x=fine_aggregate))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, fill = 'steelblue', alpha = 0.5, color = 'black')+
+  geom_density(color = 'darkred', linewidth=0.75)+
+  labs(title = "Distribution of Fine Aggregate", x = 'Fine Aggregate (kg/m3)')+
+  theme_bw()
+```
+Fine Aggregate: Nearly normal, although slightly skewed to the left.
+
+```{r}
+# QQ plot
+df %>% 
+  ggplot(aes(sample=fine_aggregate))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Fine Aggregate", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Fine Aggregate:slight deviations, probably none normal.
+
+```{r}
+# Shapiro-Wilk Test
+shapiro.test(df$fine_aggregate)
+
+```
+
+
+
+```{r}
+df %>% 
+  ggplot(aes(x=age))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, fill = 'steelblue', alpha = 0.5, color = 'black')+
+  geom_density(color = 'darkred', linewidth=0.75)+
+  labs(title = "Distribution of Age", x = 'Age (Days)')+
+  theme_bw()
+```
+Age: Right-skewed, many samples at lower ages.
+
+```{r}
+# QQ plot
+df %>% 
+  ggplot(aes(sample=age))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Age", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Age: Major deviations from the line, confirming non-normality.
+
+```{r}
+# Shapiro-Wilk Test
+shapiro.test(df$age)
+
+```
+
+```{r}
+df %>% 
+  ggplot(aes(x=strength))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, fill = 'steelblue', alpha = 0.5, color = 'black')+
+  geom_density(color = 'darkred', linewidth=0.75)+
+  labs(title = "Distribution of Concrete Compressive Strength", x = 'Concrete Compressive Strength (Mpa)')+
+  theme_bw()
+```
+Compressive Strength: Somewhat symmetric but with slight right skew.
+
+```{r}
+# QQ plot
+df %>% 
+  ggplot(aes(sample=strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Concrete Compressive Strength", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Compressive Strength: Minor deviations, could be normal?
+
+```{r}
+# Shapiro-Wilk Test
+shapiro.test(df$strength)
+
+```
+
+All p-values are less than 0.05, so we reject the null hypothesis of normality, confirming that all the continuous columns are non-normal.
+
+
+PLOT SCATTER PLOTS VS COMPRESSIVE STRENGTHS FOR NUMERIC COLUMNS
+```{r}
+df %>% 
+  ggplot(aes(x=cement, y=strength, color=concrete_category))+
+  geom_point(alpha=0.7)+
+  geom_smooth(color='black', method = "lm")+
+  labs(title = "Cement vs Compressive Strength Grouped by Category \n& Presense of Fly Ash",
+       y="Compressive Strength (MPa)")+
+  facet_grid(concrete_category ~ contains_fly_ash)+
+  theme_bw()
+```
+Cement vs. Compressive Strength: Positive trend across categories, indicating that higher cement content generally increases compressive strength
+
+```{r}
+df %>% 
+  ggplot(aes(x=blast_furnace_slag, y=strength, color=concrete_category))+
+  geom_point(alpha=0.7)+
+  geom_smooth(color='black', method = "lm")+
+  labs(title = "Blast Furnace Slag vs Compressive Strength Grouped by Category & \nPresense of Fly Ash",
+       y="Compressive Strength (MPa)")+
+  facet_grid(concrete_category ~ contains_fly_ash)+
+  theme_bw()
+```
+Blast Furnace Slag: somewhat positive relationship with compressive strength.
+
+```{r}
+df %>% 
+  ggplot(aes(x=fly_ash, y=strength, color=concrete_category))+
+  geom_point(alpha=0.7)+
+  geom_smooth(color='black', method = "lm")+
+  labs(title = "Fly Ash vs Compressive Strength Grouped by Category \n& Presense of Fly Ash",
+       y="Compressive Strength (MPa)")+
+  facet_grid(concrete_category ~ contains_fly_ash)+
+  theme_bw()
+```
+
+Fly Ash: Multiple observations without fly ash, inverse relationship with concrete strength.
+
+```{r}
+df %>% 
+  ggplot(aes(x=water, y=strength, color=concrete_category))+
+  geom_point(alpha=0.7)+
+  geom_smooth(color='black', method = "lm")+
+  labs(title = "Water vs Compressive Strength Grouped by Category \n& Presense of Fly Ash",
+       y="Compressive Strength (MPa)")+
+  facet_grid(concrete_category ~ contains_fly_ash)+
+  theme_bw()
+```
+Water: Inverse relationship, suggesting higher water content may reduce compressive strength.
+
+```{r}
+df %>% 
+  ggplot(aes(x=superplasticizer, y=strength, color=concrete_category))+
+  geom_point(alpha=0.7)+
+  geom_smooth(color='black', method = "lm")+
+  labs(title = "Superplasticizer vs Compressive Strength Grouped by Category \n& Presense of Fly Ash",
+       y="Compressive Strength (MPa)")+
+  facet_grid(concrete_category ~ contains_fly_ash)+
+  theme_bw()
+```
+Superplasticizer: Positive association with compressive strength in most cases.
+
+```{r}
+df %>% 
+  ggplot(aes(x=coarse_aggregate, y=strength, color=concrete_category))+
+  geom_point(alpha=0.7)+
+  geom_smooth(color='black', method = "lm")+
+  labs(title = "Coarse Aggregate vs Compressive Strength Grouped by Category \n& Presense of Fly Ash",
+       y="Compressive Strength (MPa)")+
+  facet_grid(concrete_category ~ contains_fly_ash)+
+  theme_bw()
+```
+Coarse Aggregate: Coarse aggregate shows slightly negative association
+
+```{r}
+df %>% 
+  ggplot(aes(x=fine_aggregate, y=strength, color=concrete_category))+
+  geom_point(alpha=0.7)+
+  geom_smooth(color='black', method = "lm")+
+  labs(title = "FIne Aggregate vs Compressive Strength Grouped by Category & \nPresense of Fly Ash",
+       y="Compressive Strength (MPa)")+
+  facet_grid(concrete_category ~ contains_fly_ash)+
+  theme_bw()
+```
+Fine Aggregate: Coarse aggregate shows generally negative association
+
+
+```{r}
+df %>% 
+  ggplot(aes(x=age, y=strength, color=concrete_category))+
+  geom_point(alpha=0.7)+
+  geom_smooth(color='black', method = "lm")+
+  labs(title = "Age vs Compressive Strength Grouped by Category \n& Presense of Fly Ash",
+       y="Compressive Strength (MPa)")+
+  facet_grid(concrete_category ~ contains_fly_ash)+
+  theme_bw()
+```
+Age: Positive relationship with compressive strength, indicating concrete strengthens over time.
+
+
+BOX PLOTS TO CHECK FOR OUTLIERS
+```{r}
+df %>%
+  ggplot(aes(y=cement))+
+  geom_boxplot(fill='steelblue', color='black')+
+  labs(title = 'Box plot of cement', y = "Cement (kg/m3)")+
+  theme_bw()
+```
+
+
+```{r}
+df %>%
+  ggplot(aes(y=blast_furnace_slag))+
+  geom_boxplot(fill='steelblue', color='black')+
+  labs(title = 'Box plot of Blast Furnace Slag', y = "Blast Furnace Slag (kg/m3)")+
+  theme_bw()
+```
+
+
+```{r}
+df %>%
+  ggplot(aes(y=fly_ash))+
+  geom_boxplot(fill='steelblue', color='black')+
+  labs(title = 'Box plot of Fly ash', y = "Fly Ash (kg/m3)")+
+  theme_bw()
+```
+
+
+```{r}
+df %>%
+  ggplot(aes(y=water))+
+  geom_boxplot(fill='steelblue', color='black')+
+  labs(title = 'Box plot of Water', y = "Water (kg/m3)")+
+  theme_bw()
+```
+
+
+```{r}
+df %>%
+  ggplot(aes(y=superplasticizer))+
+  geom_boxplot(fill='steelblue', color='black')+
+  labs(title = 'Box plot of Superplasticizer', y = "Superplasticizer (kg/m3)")+
+  theme_bw()
+```
+
+
+```{r}
+df %>%
+  ggplot(aes(y=coarse_aggregate))+
+  geom_boxplot(fill='steelblue', color='black')+
+  labs(title = 'Box plot of Coarse aggregate', y = "Coarse Aggregate (kg/m3)")+
+  theme_bw()
+```
+
+
+```{r}
+df %>%
+  ggplot(aes(y=fine_aggregate))+
+  geom_boxplot(fill='steelblue', color='black')+
+  labs(title = 'Box plot of Fine aggregate', y = "Fine Aggregate (kg/m3)")+
+  theme_bw()
+```
+
+
+```{r}
+df %>%
+  ggplot(aes(y=age))+
+  geom_boxplot(fill='steelblue', color='black')+
+  labs(title = 'Box plot of Age', y = "Age (days)")+
+  theme_bw()
+```
+
+
+```{r}
+df %>%
+  ggplot(aes(y=strength, x=concrete_category, fill=concrete_category))+
+  geom_boxplot(color='black')+
+  labs(title = 'Box plot of Concrete Strength by Concrete Category \nand Fly Ash Presence', 
+       y='Compressive Strength (MPa)')+
+  facet_grid(~contains_fly_ash)+
+  theme_bw()
+```
+
+
+
+B - Categorical Variables
+```{r}
+df %>% 
+  ggplot(aes(x=concrete_category))+
+  geom_bar(fill = 'steelblue', alpha = 0.5, color = 'black')+
+  labs(title = "Count of Concrete Category", x = 'Concrete Category')+
+  theme_bw()
+```
+
+
+```{r}
+df %>% 
+  ggplot(aes(x=contains_fly_ash))+
+  geom_bar(fill = 'steelblue', alpha = 0.5, color = 'black')+
+  labs(title = "Count of Contains Fly Ash", x = 'Contains Fly Ash')+
+  theme_bw()
+```
+BOX PLOT
+```{r}
+df %>% 
+  ggplot(aes(x=concrete_category, y=strength))+
+  geom_boxplot(color='black', fill='steelblue')+
+  labs(title='Compressive Strength by Concrete Category', y='Compressive Strength (MPa)')+
+  theme_bw()
+```
+
+```{r}
+df %>% 
+  ggplot(aes(x=contains_fly_ash, y=strength))+
+  geom_boxplot(color='black', fill='steelblue')+
+  labs(title='Compressive Strength by Contains Fly Ash', y='Compressive Strength (MPa)')+
+  theme_bw()
+```
+
+
+CORRELATION ANALYSIS
+
+A. Correlation Matrix for Continuous Variables
+```{r}
+# Select all the continuous variables
+continous_vars <- df %>% 
+  dplyr::select(cement, blast_furnace_slag, fly_ash, water, superplasticizer, 
+         coarse_aggregate, fine_aggregate, age, strength)
+
+head(continous_vars)
+```
+
+
+```{r}
+# get the correlation matrix using spearman, and round to 3 decimal places
+corr_matrix <- round(cor(continous_vars, method = 'spearman'), digits = 2)
+
+corr_matrix
+```
+
+
+```{r}
+# Visualize it using heatmap
+corrplot(corr_matrix, method = "number", type = "upper", tl.col = "black",
+         title = ("Spearman Correlation for Continuos Variables"),
+         # mar to adjust the margins, cex to reduce the text size
+         mar = c(1, 0, 3, 0), number.cex = 0.6)
+```
+Age and Strength (0.61): This moderate positive correlation suggests that as the concrete ages, its compressive strength generally increases. 
+
+Cement and Strength (0.46): This moderate positive correlation indicates that higher cement content is associated with greater compressive strength.
+
+Water and Superplasticizer (-0.67): This strong negative correlation suggests that as water content increases, superplasticizer content decreases, and vice versa.
+
+Fly Ash and Cement (-0.41): This moderate negative correlation indicates that mixes with higher fly ash content tend to use less cement. 
+
+
+B - Correlation between the 2 Categorical Variables (Contains Fly Ash & Concrete Category)
+    Both are Nominal, so we use Cramer V
+```{r}
+cramerV(df$concrete_category, df$contains_fly_ash)
+```
+Concrete Category and Contains Fly Ash (Cramer’s V = 0.02157):
+This very low Cramer’s V value implies virtually no association between concrete category (Fine vs. Coarse) and the presence of fly ash. This suggests that fly ash usage does not vary between Fine and Coarse concrete mixes.
+
+
+
+
+C - Correlation Between Continuous Variables and Binary Categorical Variable
+    Use Point Biseral correlation
+    
+```{r}
+# create new columns to change the datatypes of the categorical variables to numeric (0 and 1)
+df_copy <- df %>% 
+  mutate(contains_fly_ash_numeric = as.numeric(contains_fly_ash),
+         concrete_category = as.factor(concrete_category),  # convert it to factor first
+         concrete_category_numeric = as.numeric(concrete_category) - 1) # minus 1 to make it 0 and 1
+
+head(df_copy)
+```
+
+
+```{r}
+# Perform point biserial correlation on cement and concrete_category
+cor.test(df$cement, df_copy$concrete_category_numeric)
+```
+Cement and Concrete Category (-0.001889355): This near-zero correlation indicates that cement content does not differ meaningfully between Fine and Coarse concrete categories. Both categories likely use a similar range of cement proportions.
+
+
+```{r}
+# Perform point biserial correlation on cement and contains_fly_ash
+cor.test(df$cement, df_copy$contains_fly_ash_numeric)
+```
+Cement and Contains Fly Ash (-0.3335427): This moderate negative correlation suggests that mixes containing fly ash tend to have lower cement content.
+
+
+```{r}
+# Perform point biserial correlation on strength and contains_fly_ash
+cor.test(df$strength, df_copy$contains_fly_ash_numeric)
+```
+Strength and Contains Fly Ash (-0.03390848): This near-zero negative correlation suggests a minimal relationship between fly ash presence and compressive strength.
+
+```{r}
+# Perform point biseral correlation on strength and concrete_category
+cor.test(df$strength, df_copy$concrete_category_numeric)
+```
+Strength and Concrete Category (0.01297848): This very low positive correlation indicates that compressive strength does not really vary by concrete category (Fine vs. Coarse).
+
+
+
+
+
+
+REGRESSION
+
+MULTIPLE LINEAR REGRESSION
+
+Objective of the regression analysis:
+We want to examine the possible linear relation between compressive strength and more than one Independent Variable
+
+MODEL 1
+Lets start with cement, blast_furnace_slag, water, and superplasticizer
+
+Y = strength
+X1 = cement
+X2 = blast_furnace_slag
+X3 = water
+X4 = superplasticizer
+```{r}
+# MLR model with cement, blast_furnace_slag, water, and superplasticizer
+model_1 <- lm(strength ~ cement + blast_furnace_slag + water + superplasticizer, continous_vars)
+
+summary.lm(model_1)
+```
+All the coefficients and intercept are significant at 0.05 level
+
+strength = 22.397972 + 0.086402 * cement + 0.053765 * blast_furnace_slag - 0.102732 * water + 0.598461 * superplasticizer
+
+Adjusted R-squared = 0.4086, means that they can predict 40.9% of the total variability of compressive strength.
+
+
+Check Assumptions
+
+Assumption 1. Linearity between Strength and each variable
+```{r}
+pairs(continous_vars[, c(9, 1, 2, 4, 5)], lower.panel = NULL, pch = 19, cex=0.2)
+```
+All the variables appear to have an approximately linear relationship with strength
+
+Assumption 2: Residuals' Independence
+```{r}
+# plot residuals vs fitted values
+plot(model_1, 1)
+```
+
+
+Assumption 3: Normality of Residuals
+```{r}
+# plot qq plot of residuals
+plot(model_1, 2)
+```
+The residuals are approximately normally distributed.
+
+Assumption 4: Homescedacity (Equal Variance)
+```{r}
+plot(model_1, 3)
+```
+
+
+Assumption 5: No Multicolinearity
+```{r}
+vif(model_1)
+```
+All VIFs less than 5: No multicolinearity.
+
+
+All 5 assumptions were approved, so we can confirm the equation
+
+strength = 22.397972 + 0.086402 * cement + 0.053765 * blast_furnace_slag - 0.102732 * water + 0.598461 * superplasticizer 
+
+
+
+
+MODEL 2: Cement, blast furnace slag, water, fly_ash
+
+Y = strength
+X1 = cement
+X2 = blast_furnace_slag
+X3 = water
+X4 = fly_ash
+```{r}
+# MLR model with cement, blast_furnace_slag, water, and fly ash
+model_2 <- lm(strength ~ cement + blast_furnace_slag + water + fly_ash, continous_vars)
+
+summary.lm(model_2)
+```
+All the coefficients and intercept are significant at 0.05 level
+
+strength = 23.841431 + 0.110835 * cement + 0.081224 * blast_furnace_slag - 0.159829 * water + 0.067997 * fly_ash
+
+Adjusted R-squared = 0.42, means that they can predict 42% of the total variability of compressive strength. -> Best model
+
+
+Check Assumptions
+
+Assumption 1. Linearity between Strength and each variable
+```{r}
+pairs(continous_vars[, c(9, 1, 2, 4, 3)], lower.panel = NULL, pch = 19, cex=0.2)
+```
+All the variables appear to have an approximately linear relationship with strength
+
+Assumption 2: Residuals' Independence
+```{r}
+# plot residuals vs fitted
+plot(model_2, 1)
+```
+The correlation is approximately 0
+
+Assumption 3: Normality of Residuals
+```{r}
+#plot qq plot of residuals
+plot(model_2, 2)
+```
+The residuals are approximately normally distributed.
+
+Assumption 4: Homescedacity (Equal Variance)
+```{r}
+plot(model_2, 3)
+```
+The variance is constant.
+
+Assumption 5: No Multicolinearity
+```{r}
+vif(model_2)
+```
+All VIFs less than 5, so no multicolinearity.
+
+
+ALL 5 ASSUMPTIONS WERE APPROVED, THEEFORE:
+
+strength = 24.369098 + 0.112530 * cement + 0.084340 * blast_furnace_slag - 0.165824 * water + 0.068003 * fly_ash
+
+
+MODEL 3
+
+Y = strength
+X1 = cement
+X2 = water
+```{r}
+# MLR model with cement, blast_furnace_slag, water, and fly ash
+model_3 <- lm(strength ~ cement + water, continous_vars)
+
+summary.lm(model_3)
+```
+All the coefficients and intercept are significant at 0.05 level
+
+strength = 48.34263 + 0.07406 * cement - 0.18524 * water
+
+Adjusted R-squared = 0.31, means that they can predict 31% of the total variability of compressive strength. 
+
+
+Check Assumptions
+
+Assumption 1. Linearity between Strength and each variable
+```{r}
+pairs(continous_vars[, c(9, 1, 4)], lower.panel = NULL, pch = 19, cex=0.2)
+```
+All the variables appear to have an approximately linear relationship with strength
+
+Assumption 2: Residuals' Independence
+```{r}
+# plot residuals vs fitted
+plot(model_3, 1)
+```
+The residuals are independent
+
+Assumption 3: Normality of Residuals
+```{r}
+#plot qq plot of residuals
+plot(model_3, 2)
+```
+The residuals are approximately normally distributed.
+
+Assumption 4: Homescedacity (Equal Variance)
+```{r}
+plot(model_3, 3)
+```
+The variance is constant
+
+Assumption 5: No Multicolinearity
+```{r}
+vif(model_3)
+```
+VIF less than 5, so no multicolinearity
+
+All 5 Assumptions were met, THEEFORE:
+
+strength = 48.34263 + 0.07406 * cement - 0.18524 * water
+
+
+
+
+
+HYPOTHESIS TESTING
+
+1. Hypothesis Test 1: 
+
+alpha = 0.05
+
+Null Hypothesis (H0): The mean compressive strength of concrete with fly ash is the same as the mean compressive strength of concrete without fly ash.
+
+Alternative Hypothesis (H1): There is a significant difference in the mean compressive strength of concrete with and without fly ash. 
+
+This is a two tailed test.
+
+Check assumptions:
+
+Assumption 1. check for normality
+
+```{r}
+# Filter the samples that contain fly ash
+has_fly_ash <- df %>% 
+  filter(contains_fly_ash == TRUE)
+
+has_fly_ash %>% 
+  ggplot(aes(sample=strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for strength with Fly Ash", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+QQ plot seems like it is approximately normally distributed
+
+```{r}
+# Filter the samples that don't contain fly ash
+no_fly_ash <- df %>% 
+  filter(contains_fly_ash == FALSE)
+
+no_fly_ash %>% 
+  ggplot(aes(sample=strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for strength without Fly Ash", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+QQ plot seems like there are some deviations from normality
+
+
+Since at least one of the distributions is not normal, we can transform them to get an approximately normal distribution
+
+```{r}
+# Transform the distributions using sqrt
+
+df <- df %>% 
+  mutate(sqrt_strength = sqrt(strength))
+
+# Filter the samples that contain fly ash
+has_fly_ash <- df %>% 
+  filter(contains_fly_ash == TRUE)
+
+# Filter the samples that don't contain fly ash
+no_fly_ash <- df %>% 
+  filter(contains_fly_ash == FALSE)
+```
+
+
+```{r}
+has_fly_ash %>% 
+  ggplot(aes(sample=sqrt_strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for sqrt(strength) with Fly Ash", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+The QQ plot seems approximately normally distributed
+
+```{r}
+no_fly_ash %>% 
+  ggplot(aes(sample=sqrt_strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for sqrt(strength) without Fly Ash", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+The QQ plot seems approximately normally distributed
+
+
+Check their distributions
+```{r}
+has_fly_ash %>% 
+  ggplot(aes(x=sqrt_strength))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, alpha = 0.5, color='black', fill='steelblue')+
+  geom_density(color='darkred')+
+  labs(title = "Distribution of SQRT Concrete Compressive Strength (With Fly Ash)")+
+  theme_bw()
+
+no_fly_ash %>% 
+  ggplot(aes(x=sqrt_strength))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, alpha = 0.5, color='black', fill='steelblue')+
+  geom_density(color='darkred')+
+  labs(title = "Distribution of SQRT Concrete Compressive Strength (Without Fly Ash)")+
+  theme_bw()
+```
+
+Both Distributions appear approximately normal
+
+Assumption 3: No significant outliers in each group
+```{r}
+# Check for outliers with box plot
+df %>% 
+  ggplot(aes(x=contains_fly_ash, y=sqrt_strength, fill=contains_fly_ash)) +
+  geom_boxplot()+
+  labs(title = "SQRT Compressive Strength by Presence of Fly Ash",
+       x = "Contains Fly Ash",
+       y = "SQRT Compressive Strength (MPa)") +
+  theme_bw()
+```
+There are no outliers present
+
+Assumption 3: Independence of observations  -- They are independent.
+
+Assumption 4: Homogeneity of variances
+```{r}
+bartlett.test(sqrt_strength ~ contains_fly_ash, data=df)
+```
+p < 0.05, therefore the variances are not equal
+
+
+All assumptions met for the Independent Two-sample T test except for the equal variances.
+So we run WELCH T-Test instead
+
+Run Welch T Test
+```{r}
+t.test(sqrt_strength ~ contains_fly_ash, data=df, var.equal=FALSE)
+```
+The p-value > 0.05, we fail to reject the null hypothesis
+
+This indicates that the mean compressive strength of concrete with fly ash is the same as the mean compressive strength of concrete without fly ash.
+
+The Welch Independent two sample T test results show no statistically significant difference in compressive strength between concrete mixes with and without fly ash (p = 0.8007).
+
+
+
+2. Hypothesis Test 2:
+
+alpha = 0.05
+
+Null Hypothesis (H0): There is no difference in compressive strength between Fine and Coarse concrete categories.
+
+Alternative Hypothesis (H1): There is a significant difference in compressive strength between Fine and Coarse concrete categories.
+
+This is a two tailed test.
+
+Check assumptions:
+
+1. check for normality
+
+```{r}
+# Filter the samples that contain fly ash
+fine <- df %>% 
+  filter(concrete_category == "Fine")
+
+fine %>% 
+  ggplot(aes(sample=strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for strength with Fine concrete", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+QQ plot seems like it is not normal
+
+
+```{r}
+# Filter the samples that dont contain fly ash
+coarse <- df %>% 
+  filter(concrete_category == "Coarse")
+
+coarse %>% 
+  ggplot(aes(sample=strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for strength with Coarse Concrete", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+QQ plot seems not normal
+
+Check for normality with transformed strength
+```{r}
+# check for normality in the transformed variable
+fine %>% 
+  ggplot(aes(sample=sqrt_strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for SQRT(strength) with Fine concrete", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+
+coarse %>% 
+  ggplot(aes(sample=sqrt_strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for SQRT(strength) with Coarse Concrete", x = 'Theoretical', y = 'Sample')+
+  theme_bw()
+```
+Both distributions are still NOT normally distributed
+
+
+plot the distributions
+```{r}
+fine %>% 
+  ggplot(aes(x=sqrt_strength))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, alpha = 0.5, color='black', fill='steelblue')+
+  geom_density(color='darkred')+
+  labs(title = "Distribution of SQRT Concrete Compressive Strength (With Fine Concrete)")+
+  theme_bw()
+```
+
+```{r}
+coarse %>% 
+  ggplot(aes(x=sqrt_strength))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, alpha = 0.5, color='black', fill='steelblue')+
+  geom_density(color='darkred')+
+  labs(title = "Distribution of SQRT Concrete Compressive Strength (With Coarse Concrete)")+
+  theme_bw()
+```
+Both Distributions appear approximately normally distributed
+
+Assumption 3: No significant outliers
+```{r}
+# Check for outliers with box plot
+df %>% 
+  ggplot(aes(x=concrete_category, y=sqrt_strength, fill=concrete_category)) +
+  geom_boxplot()+
+  labs(title = "SQRT Compressive Strength by Concrete Category",
+       x = "Concrete Category",
+       y = "SQRT Compressive Strength (MPa)") +
+  theme_bw()
+```
+outliers ??????
+
+Assumption 3: Independence of observations  -- They are independent.
+
+Assumption 4: Homogeneity of variances
+
+```{r}
+bartlett.test(sqrt_strength ~ concrete_category, data=df)
+```
+p < 0.05, therefore the variances are not equal
+
+
+All assumptions met for the Independent Two-sample T test except for the equal variances.
+So we run WELCH T-Test instead
+
+Run Welch T Test
+All assumptions met for Independent two sample T test
+
+Run Welch T-Test
+```{r}
+t.test(sqrt_strength ~ concrete_category, data=df, var.equal=FALSE)
+```
+The p-value > 0.05, we fail to reject the null hypothesis
+
+The Welch Independent two sample T test shows no statistically significant difference in compressive strength between Fine and Coarse concrete categories (p = 0.8844). 
+
+
+
+
+
+3. Hypothesis Test 3: Difference in compressive strength across age groups
+
+Null Hypothesis (H0): The mean compressive strength is the same across different age groups (Early Age, Standard Strength, Mature Age).
+
+Alternative Hypothesis (H1): The mean compressive strength differs across these age groups.
+```{r}
+# Create the age groups column
+df <- df %>% 
+  mutate(age_group = case_when(
+    age <= 7 ~ "Early",
+    age >= 8 & age <= 28 ~ "Middle",
+    age >= 29 ~ "Mature"
+  ),
+  age_group = factor(age_group, levels = c("Early", "Middle", "Mature"), ordered = TRUE))
+
+head(df)
+```
+One way ANOVA ASSUMPTIONS
+1. Dependent variable should be continuous: Compressive strength is continuous
+2. Independent variables should be categorical with two or more categories: Age group is categorical with 3 ordered categories
+3. Observations should be independent: Yes they are independent.
+
+4. There should be no significant outliers
+```{r}
+# Create a box plot to check for outliers
+df %>% 
+  ggplot(aes(x=age_group, y=strength, fill=age_group))+
+  geom_boxplot()+
+  labs(title = "Compressive Strength by Age group", y = "Compressive Strength (MPa)") +
+  theme_bw()
+```
+There are some outliers present and they seem significant and not due to errors.
+
+
+5. Dependent variable should be approximately normally distributed for each category of the independent variable
+```{r}
+df %>% 
+  ggplot(aes(x=strength))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, alpha = 0.5, color='black', fill='steelblue')+
+  geom_density(color='darkred')+
+  labs(title = "Distribution of Concrete Compressive Strength across Age groups")+
+  facet_grid(~age_group)+
+  theme_bw()
+```
+The distribution of early age and middle age seem right skewed, mature age seems normal, but we can confirm with shapiro test
+```{r}
+byf.shapiro(strength ~ age_group, data=df)
+```
+All the p-values are less than 0.05, so none of them are normally distributed.
+
+Let us check the normality of the transformed variable
+
+```{r}
+# test for normality on sqrt strength
+byf.shapiro(sqrt_strength ~ age_group, data=df)
+```
+Two of the p-values are still less than 0.05 so they are not normal.
+
+Since at least 2 of our assumptions were not met, we will use a non parametric test.
+
+
+Assumptions of Kruskal Wallis test
+1. Independence of Observations: Each observation is independent.
+2. Ordinal or Continuous Outcome: Compressive strength is continuous.
+3. Non-overlapping Groups: Each sample belongs to only one age group.
+4. Similar Shape of Distributions: There appears to be some minor differences in their distributions.
+Therefore we will also run the dunns test.
+
+
+Kruskal-Wallis test
+```{r}
+# Run the Kruskal-Wallis test
+kruskal.test(strength ~ age_group, data=df)
+```
+The p-value < 0.05, we reject the null hypothesis, indicating that compressive strength distributions differ significantly across the age groups.
+
+
+3b. Post Hoc Test (Dunn Test) to see which specific age groups differ significantly from each other
+```{r}
+# run the Dunns test
+dunnTest(df$strength, df$age_group, method='bonferroni')
+```
+
+The p-values are all less than 0.05, therefore, the Dunn’s test results with Bonferroni correction indicate significant differences in compressive strength across each of the three age groups.
+
+
+
+
+
+4. Hypothesis Test 4: Difference in Compressive Strength Based on Water Content Levels
+
+Null Hypothesis (H0): There is no difference in compressive strength among groups with different levels of water content.
+
+Alternative Hypothesis (H1): There is a significant difference in compressive strength among groups with different levels of water content
+
+```{r}
+# Divide water into 3 groups based on quantiles
+one_third <- quantile(df$water, 0.33)
+two_third <- quantile(df$water, 0.66)
+print(c(one_third, two_third))
+```
+so we divide the levels as:
+water level < 172.34,  172.34 < water level < 192, and water level >= 192
+```{r}
+# create a new water_level column
+df <- df %>% 
+  mutate(water_level = case_when(
+    water < one_third ~ "Low",
+    water >= one_third & water < two_third ~ "Middle",
+    water >= two_third ~ "High"
+  ),
+  water_level = factor(water_level, levels = c("Low", "Middle", "High"), ordered = TRUE))
+
+head(df)
+```
+
+One way ANOVA ASSUMPTIONS
+1. Dependent variable should be continuous: Compressive strength is continuous
+2. Independent variables should be categorical with two or more categories: Water_level is categorical with 3 ordered categories
+3. Observations should be independent: Yes they are independent.
+
+4. There should be no significant outliers
+```{r}
+# Create a box plot to check for outliers
+df %>% 
+  ggplot(aes(x=water_level, y=strength, fill=water_level))+
+  geom_boxplot()+
+  labs(title = "Compressive Strength by Water Level", y = "Compressive Strength (MPa)") +
+  theme_bw()
+```
+There are some outliers, but it doesn't seem to be influential so we can approve the 4th assumption.
+
+5. Dependent variable should be approximately normally distributed for each category of the independent variable
+```{r}
+# check distributions for normality
+df %>% 
+  ggplot(aes(x=strength))+
+  geom_histogram(aes(y = after_stat(density)), bins = 10, alpha = 0.5, color='black', fill='steelblue')+
+  geom_density(color='darkred')+
+  labs(title = "Distribution of Concrete Compressive Strength across Water Levels")+
+  facet_grid(~water_level)+
+  theme_bw()
+```
+```{r}
+# plot qq plots to check for normality
+df %>% 
+  ggplot(aes(sample=strength))+
+  stat_qq_point(size = 2,color = "steelblue")+
+  stat_qq_line(color="darkred")+
+  labs(title = "QQ Plot for Water Level", x = 'Theoretical', y = 'Sample')+
+  facet_grid(~water_level)+
+  theme_bw()
+```
+The QQ plots show that all three levels are approximately normally distributed.
+
+6. Variances of the dependent variable within each category should be homogeneous
+```{r}
+# use bartlett.test
+bartlett.test(strength ~ water_level, data=df)
+```
+the p-value is less than 0.05, indicating evidence that the variances are not equal.
+
+We can run a WELCH ANOVA instead.
+
+```{r}
+# Run the WELCH ANOVA test
+oneway.test(strength ~ water_level, data=df, var.equal = FALSE)
+```
+p-value < 0.05, We reject the null hypothesis, indicating a statistically significant difference in compressive strength across the different water content groups (Low, Medium, and High). We can conclude that at least one of the water levels is different from the others in terms of compressive strength.
+
+In order to find out which levels are different, we run a post hoc test
+
+
+4b. Post Hoc Test (Tukey HSD Test) to see which specific water levels differ significantly from each other
+```{r}
+# run anova using aov function
+water_aov <- aov(strength ~ water_level, data=df)
+# run Tukey HSD test
+water_post_test <- TukeyHSD(water_aov) 
+water_post_test
+```
+The TUKEY HSD test results show that all three adjusted p-values are less than 0.05, so we reject the null hypothesis, which means that all water levels are significantly different in terms of compressive strength.
+```{r}
+par(mar = c(5, 5, 5, 5))
+plot(water_post_test)
+```
+
+
+```{r}
+```
+
+
